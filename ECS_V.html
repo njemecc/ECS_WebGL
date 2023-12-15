@@ -1,0 +1,203 @@
+<html>
+<head>
+</head>
+<body>
+    </canvas>
+    <script>
+
+        function Entity(){
+            Entity.prototype._count++;
+            this.id = Entity.prototype._count;
+            this.components = {};
+            this.addComponents = function addComponent(c){
+                this.components[c.name] = c;
+                return this;
+            }
+            this.removeComponents = function removeComponents(c){
+                delete this.components[c.name];
+                return this;
+            }
+        }
+
+        function Component(name, value){
+            this.name = name;
+            this.value = value;
+        }
+
+        (function init(){
+            Entity.prototype._count = 0;
+        }())
+
+        entities = [];
+
+        entities.push(
+            new Entity()
+            .addComponents(new Component('PosX', 10))
+            .addComponents(new Component('PosY', 25))
+
+            .addComponents(new Component('UserUp', false))
+            .addComponents(new Component('UserDown', false))
+            .addComponents(new Component('UserLeft', false))
+            .addComponents(new Component('UserRight', false))
+            )
+
+
+        systems = []
+
+        printSystem = function(entities){
+            for(e of entities){
+                if(e.components.UserUp !== undefined){
+                            console.log(e.components.PosY.value)
+                        }
+            }
+            return entities;
+        }
+
+        userUpSystem = function(entities){
+            let newEntities = []
+            for(e of entities){
+                if(e.components.UserUp !== undefined){
+                    //Logic of up
+                    if(e.components.UserUp.value == true)
+                    {
+                        e.components.PosY.value++;
+                        e.components.UserUp.value = false;
+                    }
+                }
+                newEntities.push(e)
+            }
+            return newEntities;
+        }
+
+        userInputSystem = (function inputSystem(){
+            let downEvents = [];
+            let upEvents = [];
+            function handleKeyDown(event){
+                downEvents.push(event.keyCode);
+                downEvents = [...(new Set(downEvents))]
+            }
+            function handleKeyUp(event){
+                upEvents.push(event.keyCode);
+                upEvents = [...(new Set(upEvents))]
+            }
+
+            window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('keyup', handleKeyUp);
+            return (entities) =>{
+                let newEntities = []
+                for(e of entities){
+                    //UP 38
+                    
+                    if(downEvents.includes(38)){
+                        if(e.components.UserUp !== undefined){
+                            e.components.UserUp.value = true;
+                        }
+                    }
+
+                    //Down 40
+                    if(downEvents.includes(40)){
+                        if(e.components.UserUp !== undefined){
+                            e.components.UserUp.value = true;
+                        }
+                    }
+
+                    //Left 37
+                    if(downEvents.includes(37)){
+                        console.log("Button pressed!")
+                    }
+
+                    //Right 39
+                    if(downEvents.includes(39)){
+                        console.log("Button pressed!")
+                    }
+
+                    newEntities.push(e)
+                }
+                downEvents = downEvents.filter(
+                    value => !upEvents.includes(value))
+                return newEntities;
+            }
+        })()
+
+        //Graphics system
+
+        renderingSystem = function graphicsSystem(){
+
+            document.body.innerHTML += 
+        '<canvas id="window" width=600 height =400> </canvas>'
+
+        let w = document.getElementById("window")
+        let gl = w.getContext("webgl")
+
+        let verticies = [
+            -0.5,0.5,0.0,
+            0.5,-0.5,0.0,
+            0.5,-0.5,0.0,
+        ]
+
+
+        let indices = [0,1,2]
+
+
+        //Vertex Buffer
+        
+        let vertex_buffer = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER,vertex_buffer)
+        gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(verticies),gl.STATIC_DRAW)
+        gl.bindBuffer(gl.ARRAY_BUFFER,null);
+
+
+        //Index Buffer
+
+        let index_buffer = gl.createBuffer()
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,index_buffer)
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(indices),gl.STATIC_DRAW)
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,null);
+
+        //Shader
+
+        //Vertex Shader:
+        let vertCode = 'attribute vec3 coordinates;' + 
+        'void main(void) {
+            
+        }'
+
+        //Compile Shader
+
+        //clear screen
+                //RGBA
+        gl.clearColor(0.5,0.5,0.5,1.0)
+
+        return (entities) => {
+            //Rendering
+            return entities
+        }
+        }
+       
+        
+
+        systems.push(
+            printSystem,
+            userInputSystem,
+            userUpSystem,
+            renderingSystem
+        )
+
+
+        function game(entities, systems){
+            for(s of systems)
+            {
+                entities = s(Object.freeze(entities))
+            }
+        }
+
+        setInterval(()=>
+            {
+                game(entities, systems);
+            }, 
+            1000
+        )
+
+    </script> 
+</body>
+</html>
