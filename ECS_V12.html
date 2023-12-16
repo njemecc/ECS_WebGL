@@ -1,0 +1,241 @@
+<html>
+<head>
+</head>
+<body>
+    </canvas>
+    <script>
+
+        let windowW=500;
+        let windowH=500;
+        let fps = 30;
+
+        function Entitiy(){
+            Entitiy.prototype._count++;
+            this.id = Entitiy.prototype._count;
+            this.componenets = {};
+            this.addComponent = function addComponent(componenet){
+                this.componenets[componenet.name] = componenet;
+                return this;
+            }
+            this.removeComponent = function removeComponent(componenet){
+                delete this.componenets[componenet.name];
+                return this;
+            }
+        }
+
+        function Componenet(name, value){
+            this.name = name;
+            this.value = value;
+        }
+
+        (function init(){
+            Entitiy.prototype._count = 0;
+            }())
+
+        let entities = [];
+
+        entities.push(new Entitiy()
+            .addComponent(new Componenet('playerx', 50))
+            .addComponent(new Componenet('playery', 250))
+            .addComponent(new Componenet('jump', 0))
+            .addComponent(new Componenet('JumpSound', new Audio('jump_02.wav')))
+            .addComponent(new Componenet('vely', 0))
+            .addComponent(new Componenet('speedy', 0))
+            .addComponent(new Componenet('hit', 0))
+            );
+
+        entities.push(new Entitiy()
+           .addComponent(new Componenet('x', 250))
+           .addComponent(new Componenet('y', 250)));
+
+        entities.push(new Entitiy()
+           .addComponent(new Componenet('x', 550))
+           .addComponent(new Componenet('y', 250)));
+
+        entities.push(new Entitiy()
+            .addComponent(new Componenet('points', 0)));
+   
+        let systems = [];
+
+        function userInputSystem(x){
+            return x
+        }
+
+        //User input system
+        userInputSystem = (function inputSystem(){
+            //Inicializacija
+            let downEvents = []
+            let upEvents = []
+            function handleKeyDown(event) {
+                    downEvents.push(event.keyCode)
+                    downEvents = [...(new Set(downEvents))];
+                }
+
+            function handleKeyUp(event) {
+                    upEvents.push(event.keyCode)
+                    upEvents = [...(new Set(upEvents))];
+                }
+
+            window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('keyup', handleKeyUp);
+            //System funkcija
+            return (entities) =>{
+                let newEntities = []
+                for(e of entities){
+                    //Keyboard:
+                    if(e.componenets.playerx !== undefined && e.componenets.playery !== undefined)
+                        {
+                            if(downEvents.includes(38)){
+                                e.componenets.playery.value = e.componenets.playery.value + 0.01;
+                                if(e.componenets.jump !== undefined)
+                                    e.componenets.jump = true
+                            }
+                        }
+                    //Mouse:
+                    newEntities.push(e)
+                }
+                downEvents = downEvents.filter(value => !upEvents.includes(value));
+                return newEntities;
+            } 
+        })()
+
+        let pts= 0;
+
+        //Graphics System
+        renderingSystem = (function graphicsSystem(){
+
+            //Graphics Init:
+            document.body.innerHTML += '<canvas id="window" width=' + windowW + ' height=' + windowH + ' ></canvas>';
+            
+            let window = document.getElementById('window');
+            let ctx = window.getContext('2d');
+
+            let bird = new Image(100, 100);
+            bird.src = "bird.png"
+
+            let pipeUp = new Image(100, 500);
+            pipeUp.src = "pipeUp.png"
+
+            let pipeDown = new Image(100, 500);
+            pipeDown.src = "pipeDown.png"
+
+
+            return(entities) =>{
+                //Graphics Loop
+                ctx.clearRect(0,0,windowW,windowH)
+                //Clear
+                for(e of entities){
+
+                    if(e.componenets.playerx !== undefined){
+                        ctx.drawImage(bird, e.componenets.playerx.value, e.componenets.playery.value, 50, 50);
+                    }
+
+                    if(e.componenets.x !== undefined){
+                        ctx.drawImage(pipeUp, e.componenets.x.value , e.componenets.y.value-350-100, 100, 350);
+                        ctx.drawImage(pipeDown, e.componenets.x.value , e.componenets.y.value+120, 100, 350);
+                        //Debug Bird
+                        //ctx.drawImage(bird, e.componenets.x.value , e.componenets.y.value, 10, 19);
+                    }
+                }
+                return entities;
+            }
+        }())
+
+        jumpSystem = function(entities){
+            let newEntities = []
+            for(e of entities){
+                if(e.componenets.jump !== undefined){
+                    if(e.componenets.jump == true){
+                        e.componenets.speedy.value = -15
+                        e.componenets.jump = false
+                        e.componenets.JumpSound.value.play()
+                    }
+                }
+                newEntities.push(e)
+            }
+            return newEntities
+        }
+        
+        physicsSystem = function(entities){
+            let newEntities = []
+            let g = 1;
+            let pSpeed = -10;
+
+            for(e of entities){
+                //Gravavitacia:
+                if(e.componenets.playery !== undefined){
+                    e.componenets.speedy.value = e.componenets.speedy.value + g;
+                    e.componenets.playery.value = e.componenets.playery.value + e.componenets.speedy.value;
+                }
+                if(e.componenets.x !== undefined){
+                    e.componenets.x.value = e.componenets.x.value + pSpeed;
+
+                    if(e.componenets.x.value<-75){
+                        e.componenets.x.value = windowW;
+                        e.componenets.y.value = Math.random() * 175 + 100
+                        pts = pts + 1;
+                    }
+            }
+                if(e.componenets.points !== undefined){ 
+
+                }  
+                
+                newEntities.push(e)
+            }
+            return newEntities
+        }
+
+        collisionSystem = function (entities){
+            let newEntities = []
+            for(e of entities){
+                if(e.componenets.playerx !== undefined){
+                    for(i of entities)
+                        {
+                            if(i.componenets.x !== undefined && i.componenets.y !== undefined){
+                                //x 
+                                if(e.componenets.playerx.value > i.componenets.x.value && e.componenets.playerx.value < i.componenets.x.value + 50)
+                                {
+                                    if(!(e.componenets.playery.value > i.componenets.y.value-100 
+                                    && e.componenets.playery.value < i.componenets.y.value+100))
+                                        e.componenets.hit.value = 1;
+                                }
+                            }
+                        }
+                    newEntities.push(e);
+                }
+            }
+            return newEntities
+        }
+
+        function gameOver(entities){
+            for(e of entities){
+                if(e.componenets.hit !== undefined){
+                    if(e.componenets.hit.value === 1){
+                        alert("Game Over! \n Your socre is: " + pts)
+                    }
+                }
+            }
+            return entities;
+        } 
+        systems.push(userInputSystem)
+        systems.push(jumpSystem)
+        systems.push(physicsSystem)
+        systems.push(renderingSystem)
+        systems.push(collisionSystem)
+        systems.push(gameOver)
+
+        function game(entities, systems){
+            for(s of systems)
+                {
+                    entities = s(Object.freeze(entities))
+                }                   
+        }
+
+        //Set interval kao dleta time
+        setInterval(() => {
+                game(entities, systems);
+            }, 1000/fps);
+
+    </script> 
+</body>
+</html>j
